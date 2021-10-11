@@ -6,6 +6,8 @@
 #include "proc.h"
 #include "x86.h"
 #include "syscall.h"
+#include <stdbool.h>
+#include "spinlock.h"
 
 // User code makes a system call with INT T_SYSCALL.
 // System call number in %eax.
@@ -128,13 +130,26 @@ static int (*syscalls[])(void) = {
 [SYS_close]   sys_close,
 };
 
+
+struct spinlock lock; //lock used to updateCount
+bool initFlag=0; //init flag
+extern int carr[23]; //our array that holds how many times trapped
+void updateCount(int trap);
 void
 syscall(void)
 {
+  if(initFlag==0){ //if haven't already been initialized
+	  initlock(&lock, "countTraps lock"); //get lock
+  	  initFlag=1;
+  }
   int num;
   struct proc *curproc = myproc();
-
+  
   num = curproc->tf->eax;
+
+  acquire(&lock); //lock so can properly updateCount
+  updateCount(num); //num=%eax register value
+  release(&lock); //unlock - allow for process to conitnue	
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     curproc->tf->eax = syscalls[num]();
   } else {
