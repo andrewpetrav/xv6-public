@@ -461,7 +461,7 @@ void updateCount(int trap){
 }
 
 int countTraps(void){
-	int* trapCounts; //pointer
+	int * trapCounts; //pointer
 	int size; 
 	//these next lines are for us to get point to size and the trapCounts pointer
 	argint(1,&size);
@@ -470,7 +470,7 @@ int countTraps(void){
 	struct proc *cp=myproc(); //the current process
 
 	for(int i=0; i<23; i++){
-		trapCounts[i]=cp->trapCount[i]; //move the trap count from the process to this newly made trapCounts array
+		trapCounts[i]=cp->trapCount[i]; //move the trap count from the process to pointer
 	}
 
 	return 0;
