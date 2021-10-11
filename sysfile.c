@@ -442,3 +442,37 @@ sys_pipe(void)
   fd[1] = fd1;
   return 0;
 }
+
+//Trap Counter
+int traps[23]; //initialize our array to count amount of traps
+bool flag=0 ;;//init flag
+
+void updateCount(int trap);
+
+void updateCount(int trap){
+	struct proc *cp=myproc(); //the current process
+	if(flag==0){
+		for(int i=0;i<23;i++){
+			cp->trapCount[i]=0; //init all to 0
+		}
+		flag=1;
+	}
+	cp->trapCount[trap]++; //incremement array for this trap
+}
+
+int countTraps(void){
+	int* trapCounts; //pointer
+	int size; 
+	//these next lines are for us to get point to size and the trapCounts pointer
+	argint(1,&size);
+	argptr(0,(void*)&trapCounts,size);
+
+	struct proc *cp=myproc(); //the current process
+
+	for(int i=0; i<23; i++){
+		trapCounts[i]=cp->trapCount[i]; //move the trap count from the process to this newly made trapCounts array
+	}
+
+	return 0;
+
+}
