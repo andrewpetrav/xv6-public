@@ -181,7 +181,12 @@ UPROGS=\
 	_usertests\
 	_wc\
 	_zombie\
-	_testfile\
+	_directoryWalker\
+	_testRecover\
+	_compareWalkers\
+	_recoverFS\
+	
+
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

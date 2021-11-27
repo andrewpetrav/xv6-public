@@ -16,7 +16,7 @@
 #include "file.h"
 #include "fcntl.h"
 #include "buf.h"
-#include <stdbool.h>
+
 
 
 // Fetch the nth word-sized system call argument as a file descriptor
@@ -66,7 +66,8 @@ void fixFile(int i){
 
 void reverse(char original[]){ //does what the method name implies
 	char reversed;
-	for(int i=0, int j=strlen(original)-1;i<j; i++, j--){
+	int i,j;
+	for(i=0, j=strlen(original)-1;i<j; i++, j--){
 		reversed=original[i];
 		original[i]=original[j];
 		original[j]=reversed;

@@ -23,7 +23,11 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
-int countTraps(int *traps, int size);
+int directoryWalker(char*);
+int inodeTBWalker(void);
+int deleteIData(int);
+int compareWalkers(void);
+int recoverFS(void);
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);
