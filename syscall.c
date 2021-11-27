@@ -105,7 +105,13 @@ extern int sys_unlink(void);
 extern int sys_wait(void);
 extern int sys_write(void);
 extern int sys_uptime(void);
-extern int countTraps(void);
+//Added
+extern int sys_myMemory(void);
+extern int sys_inodeTBWalker(void);
+extern int sys_deleteIData(void);
+extern int sys_directoryWalker(void);
+extern int sys_compareWalkers(void);
+extern int sys_recoverFS(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -129,7 +135,13 @@ static int (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
-[SYS_countTraps] countTraps,
+//Added
+[SYS_myMemory] sys_myMemory,
+[SYS_inodeTBWalker] sys_inodeTBWalker,
+[SYS_deleteIData] sys_deleteIData,
+[SYS_directoryWalker] sys_directoryWalker,
+[SYS_compareWalkers] sys_compareWalkers,
+[SYS_recoverFS] sys_recoverFS,
 };
 
 

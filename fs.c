@@ -27,6 +27,13 @@ static void itrunc(struct inode*);
 // only one device
 struct superblock sb; 
 
+//Added
+struct inode*;
+getCaller(uint i){
+	return iget(1,i);
+}
+
+
 // Read the super block.
 void
 readsb(int dev, struct superblock *sb)
@@ -233,6 +240,19 @@ iupdate(struct inode *ip)
   memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
   log_write(bp);
   brelse(bp);
+}
+
+//Added
+void FSDelete(uint i){
+	begin_op();
+	struct inode *toDel;
+	toDel=iget(1,i);
+	ilock(toDel); //lock
+	toDel->addrs[0]=0; //critical section
+	iupdate(toDel); //update changes
+	iunlock(toDel); //unlock
+	end_op();
+	return;
 }
 
 // Find the inode with number inum on device dev

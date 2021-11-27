@@ -18,6 +18,94 @@
 #include <stdbool.h>
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
+
+//Added
+void directoryWalkerSub(char* path);
+void strcar(char* st1, const char* st2); //string 1 and string 2
+int strcomp(const char* st1, char* st2); //string 1 and string 2
+void reset();
+void reverse(char s[]);
+void itoa(int n, char s[]);
+void fixFile(int inum); //inumber
+void fixDir(int index, int pIndex); //directory's index and parent's index
+
+int sys_directoryWalker(void);
+int sys_inodeTBWalker(void);
+
+struct corDirs[200]; //corrupted directories
+struct superblock sb;
+int inodeLink[200];
+int inodeTBWalkerLink[200];
+	
+int sys_recoverFS(){
+	for(int i=2;i<200;i++){ //loop thru inodes of the corrupted dirs
+		if(corDirs[i]!=0){ //if there's a problem with the dir, fix it
+			fixDir(i);
+		}
+	}
+	for(int i=2;i<200;i++){ //loop thru inodes of files
+		if(inodeLink[i]!=inodeTBWalkerLink[i]){ //if there's a file prob
+			fixFile(i); //if not same, must fix
+		}
+	}
+	//Now that everything's fixed...
+	//clear the arrays
+	for(int i=0;i<200;i++){
+		inodeLink[i]=0;
+		corDirs[i]=0;
+	}
+	return 1;
+
+void fixDir(int idx, int pdx){
+	begin_op();
+	struct inode* dirPtr=igetCaller(idx); //ptr to dir
+	struct inode* prntPtr=igetCaller(pdx); //ptr to parent
+	dirlink(dirPtr,".",dirPtr->inum); //link
+	dirlink(dirPtr,"..", prntPtr->inum); //link up 2 levels
+	end_op();
+}
+
+void fixFile(int i){
+	begin_op();
+	char name[14]={0};
+	strcat(name,"temp_");
+	char temp[4];
+	itoa(i, temp);
+	strcat(name,temp);
+	struct inode* ip=igetCaller(1);
+	ilock(ip);
+	dirlink(ip,name,i);
+	iunlock(ip);
+	end_op();
+}
+
+void reverse(char original[]){ //does what the method name implies
+	char reversed;
+	for(int i=0, int j=strlen(original)-1;i<j; i++, j--){
+		reversed=original[i];
+		original[i]=original[j];
+		original[j]=reversed;
+	}
+}
+
+void itoa(int n, char input[]){ 
+	int positive=n; //if <0, then negative (false)
+	if(n<0){
+		n=-n; //make pos
+	}
+	int i=0; //init and declare
+	do{ //gen digits in reversed order
+		input[i++]=n%10+'0'; //get the next digit
+	}while((n/=10)>0); //delete
+	if(positive<0){
+		input[i++]='-'; //then negate
+	}
+	input[i]='\0'; //add null term
+	reverse(input(); //reverse it
+
+}
+
+}
 static int
 argfd(int n, int *pfd, struct file **pf)
 {
