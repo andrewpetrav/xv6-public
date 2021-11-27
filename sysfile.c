@@ -24,41 +24,23 @@
 
 //Added
 void directoryWalkerSub(char* path);
-void strcar(char* st1, const char* st2); //string 1 and string 2
-int strcomp(const char* st1, char* st2); //string 1 and string 2
-void resetArrays();
-void reverse(char s[]);
-void itoa(int n, char s[]);
-void fixFile(int inum); //inumber
-void fixDir(int index, int pIndex); //directory's index and parent's index
-
+void strcat(char* st1, const char* st2); //string 1 and string 2
+int strcmp(const char* st1, char* st2); //string 1 and string 2
 int sys_directoryWalker(void);
 int sys_inodeTBWalker(void);
+void fixFile(int inumber);
+void reverse(char input[]);
+void itoa(int n, char input[]);
+void fixDir(int index, int pIndex); //directory's index and parent's index
+void resetArrays();
 
-int corDirs[200]; //corrupted directories
+
 struct superblock sb;
-int inodeLink[200];
-int inodeTBWalkerLink[200];
+int corDirs[200]; //corrupted directories
+int inodeLink[200]; //for directoryWalker
+int inodeTBWalkerLink[200]; //for TBWalker
 	
-int sys_recoverFS(){
-	for(int i=2;i<200;i++){ //loop thru inodes of the corrupted dirs
-		if(corDirs[i]!=0){ //if there's a problem with the dir, fix it
-			fixDir(i,corDirs[i]);
-		}
-	}
-	for(int i=2;i<200;i++){ //loop thru inodes of files
-		if(inodeLink[i]!=inodeTBWalkerLink[i]){ //if there's a file prob
-			fixFile(i); //if not same, must fix
-		}
-	}
-	//Now that everything's fixed...
-	//clear the arrays
-	for(int i=0;i<200;i++){
-		inodeLink[i]=0;
-		corDirs[i]=0;
-	}
-	return 1;
-}
+
 void fixDir(int idx, int pdx){
 	begin_op();
 	struct inode* dirPtr=igetCaller(idx); //ptr to dir
@@ -141,7 +123,7 @@ void directoryWalkerSub(char* path){
 	begin_op();
 	ilock(ip); //lock
 	if(ip->type==T_DIR){ //if directory
-		for(offset=0; off<ip->size; offset+=sizeof(d)){
+		for(offset=0; offset<ip->size; offset+=sizeof(d)){
 			if(readi(ip,(char*)&d,offset,sizeof(d))!=sizeof(d)){
 				panic("READING NOT SUCCESSFUL");
 			}
@@ -157,7 +139,7 @@ void directoryWalkerSub(char* path){
 			if(d.inum==0){
 				continue;
 			}
-			printf(1,"NAME: %s \t INODE NUMBER: %d\n", d.name, d.inum);
+			cprintf("NAME: %s \t INODE NUMBER: %d\n", d.name, d.inum);
 			if(strcmp(d.name,".")==0 || strcmp(d.name, "..")==0){
 				continue;
 			}
@@ -176,7 +158,7 @@ void directoryWalkerSub(char* path){
 	iunlock(ip);
 	end_op();
 }
-}
+
 static int
 argfd(int n, int *pfd, struct file **pf)
 {
@@ -605,22 +587,22 @@ sys_pipe(void)
 //Added
 int sys_compareWalkers(){
 	resetArrays();
-	printf(1,"DIRECTORY WALKER\n");
+	cprintf("DIRECTORY WALKER\n");
 	directoryWalkerSub(".");
-	printf(1,"INODE TABLE WALKER\n");
+	cprintf("INODE TABLE WALKER\n");
 	sys_inodeTBWalker();
 	
 	int same=1; //holds if the walkers are the same or not
 	for(int i=2; i<200; i++){ //start at 2 bc roots will be same
 		if(inodeLink[i]!=inodeTBWalkerLink[i]){ //if diff
 			same=0; //not the same bc there's a difference
-			printf(1,"DIFFERENCE FOUND AT INODE %d\n",i);
-			printf(1, "INODE LINKS: %d \t DIRECTORY WALKER LINKS: %d\n", inodeLink[i], inodeTBWalkerLink[i]);
+			cprintf("DIFFERENCE FOUND AT INODE %d\n",i);
+			cprintf("INODE LINKS: %d \t DIRECTORY WALKER LINKS: %d\n", inodeLink[i], inodeTBWalkerLink[i]);
 		}
 	}
 	for(int i=2; i<200; i++){
 		if(corDirs[i]!=0){
-		printf("CORRUPTED DIRECTORY AT DIRECTORY %d\n",i);
+		cprintf("CORRUPTED DIRECTORY AT DIRECTORY %d\n",i);
 		}
 	}
 	return same;
@@ -632,7 +614,7 @@ int sys_directoryWalker(void){
 	if(!path){
 		path="."; //set to default
 	}
-	printf(1,"PATH IS %s\n", path);
+	cprintf("PATH IS %s\n", path);
 	resetArrays();
 	directoryWalkerSub(path); //call the sub routine
 	return 0;
@@ -650,7 +632,7 @@ int sys_inodeTBWalker(void){
 		bp=bread(1, IBLOCK(i, sb));
 		dp=(struct dinode*)bp->data+i%IPB;
 		if(dp->type!=0){ //if not a free inode
-			printf(1, "INODE %d \t TYPE %d\n", i,dp->type);
+			cprintf("INODE %d \t TYPE %d\n", i,dp->type);
 			inodeTBWalkerLink[i]++; //increment
 		}
 		brelse(bp);
@@ -665,5 +647,22 @@ int sys_deleteIData(void){
 	return 0;
 }
 
-
+int sys_recoverFS(){
+	for(int i=2;i<200;i++){
+		if(corDirs[i]!=0){
+			fixDir(i,corDirs[i]); //directory needs fixing
+		}
+	}
+	for(int i=2; i<200; i++){
+		if(inodeLink[i]!=inodeTBWalkerLink[i]){
+			fixFile(i); //file needs fixing
+		}
+	}
+	//Now clear the arrays now that everything is fixed
+	for(int i=0; i<200;i++){
+		inodeLink[i]=0;
+		corDirs[i]=0;
+	}
+	return 1;
 }
+
