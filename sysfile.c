@@ -15,7 +15,10 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
+#include "buf.h"
 #include <stdbool.h>
+
+
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 
@@ -23,7 +26,7 @@
 void directoryWalkerSub(char* path);
 void strcar(char* st1, const char* st2); //string 1 and string 2
 int strcomp(const char* st1, char* st2); //string 1 and string 2
-void reset();
+void resetArrays();
 void reverse(char s[]);
 void itoa(int n, char s[]);
 void fixFile(int inum); //inumber
@@ -32,7 +35,7 @@ void fixDir(int index, int pIndex); //directory's index and parent's index
 int sys_directoryWalker(void);
 int sys_inodeTBWalker(void);
 
-struct corDirs[200]; //corrupted directories
+int corDirs[200]; //corrupted directories
 struct superblock sb;
 int inodeLink[200];
 int inodeTBWalkerLink[200];
@@ -40,7 +43,7 @@ int inodeTBWalkerLink[200];
 int sys_recoverFS(){
 	for(int i=2;i<200;i++){ //loop thru inodes of the corrupted dirs
 		if(corDirs[i]!=0){ //if there's a problem with the dir, fix it
-			fixDir(i);
+			fixDir(i,corDirs[i]);
 		}
 	}
 	for(int i=2;i<200;i++){ //loop thru inodes of files
@@ -55,7 +58,7 @@ int sys_recoverFS(){
 		corDirs[i]=0;
 	}
 	return 1;
-
+}
 void fixDir(int idx, int pdx){
 	begin_op();
 	struct inode* dirPtr=igetCaller(idx); //ptr to dir
@@ -101,10 +104,78 @@ void itoa(int n, char input[]){
 		input[i++]='-'; //then negate
 	}
 	input[i]='\0'; //add null term
-	reverse(input(); //reverse it
+	reverse(input); //reverse it
 
 }
 
+void strcat(char* s1, const char* s2){
+	while(*s1){
+		s1++;
+	}
+	while(*s2){
+		*s1++=*s2++;
+	}
+	*s1=0;
+}
+
+int strcmp(const char* s1, char* s2){
+	for(; *s1 && *s2 && *s1==*s2; s1++, s2++);
+	return *(unsigned char*)s1-*(unsigned char*)s2;
+}
+
+void resetArrays(){
+	//init the link log and the corrupt dir log
+	for(int i=0;i<200;i++){
+		inodeLink[i]=0;
+		corDirs[i]=0;
+	}
+}
+
+void directoryWalkerSub(char* path){
+	struct inode* ip=namei(path);
+	if(!ip){ //if doesn't exist
+		panic("INVALID FILE PATH");
+	}
+	uint offset;
+	struct dirent d;
+	begin_op();
+	ilock(ip); //lock
+	if(ip->type==T_DIR){ //if directory
+		for(offset=0; off<ip->size; offset+=sizeof(d)){
+			if(readi(ip,(char*)&d,offset,sizeof(d))!=sizeof(d)){
+				panic("READING NOT SUCCESSFUL");
+			}
+			if(offset==0 && (strcmp(d.name,"."))){
+				char name[14]="..";
+				iunlock(ip);
+				struct inode* broken=nameiparent(path,name);
+				corDirs[ip->inum]=broken->inum;
+				//record inode number of corrupted dir 
+				//and its parent's number
+				ilock(ip);
+			}
+			if(d.inum==0){
+				continue;
+			}
+			printf(1,"NAME: %s \t INODE NUMBER: %d\n", d.name, d.inum);
+			if(strcmp(d.name,".")==0 || strcmp(d.name, "..")==0){
+				continue;
+			}
+			inodeLink[d.inum]++;
+
+			char path2[14]={0};
+			strcat(path2, path); //concatenate
+			strcat(path2,"/"); 
+			strcat(path2,d.name);
+			iunlock(ip);
+			directoryWalkerSub(path2);
+			ilock(ip);
+		}
+
+	}
+	iunlock(ip);
+	end_op();
+}
 }
 static int
 argfd(int n, int *pfd, struct file **pf)
@@ -531,36 +602,68 @@ sys_pipe(void)
   return 0;
 }
 
-//Trap Counter
-int traps[23]; //initialize our array to count amount of traps
-bool flag=0 ;;//init flag
-
-void updateCount(int trap);
-
-void updateCount(int trap){
-	struct proc *cp=myproc(); //the current process
-	if(flag==0){
-		for(int i=0;i<23;i++){
-			cp->trapCount[i]=0; //init all to 0
+//Added
+int sys_compareWalkers(){
+	resetArrays();
+	printf(1,"DIRECTORY WALKER\n");
+	directoryWalkerSub(".");
+	printf(1,"INODE TABLE WALKER\n");
+	sys_inodeTBWalker();
+	
+	int same=1; //holds if the walkers are the same or not
+	for(int i=2; i<200; i++){ //start at 2 bc roots will be same
+		if(inodeLink[i]!=inodeTBWalkerLink[i]){ //if diff
+			same=0; //not the same bc there's a difference
+			printf(1,"DIFFERENCE FOUND AT INODE %d\n",i);
+			printf(1, "INODE LINKS: %d \t DIRECTORY WALKER LINKS: %d\n", inodeLink[i], inodeTBWalkerLink[i]);
 		}
-		flag=1;
 	}
-	cp->trapCount[trap]++; //incremement array for this trap
+	for(int i=2; i<200; i++){
+		if(corDirs[i]!=0){
+		printf("CORRUPTED DIRECTORY AT DIRECTORY %d\n",i);
+		}
+	}
+	return same;
 }
 
-int countTraps(void){
-	int * trapCounts; //pointer
-	int size; 
-	//these next lines are for us to get point to size and the trapCounts pointer
-	argint(1,&size);
-	argptr(0,(void*)&trapCounts,size);
-
-	struct proc *cp=myproc(); //the current process
-
-	for(int i=0; i<23; i++){
-		trapCounts[i]=cp->trapCount[i]; //move the trap count from the process to pointer
+int sys_directoryWalker(void){
+	char *path;
+	argstr(0,&path);
+	if(!path){
+		path="."; //set to default
 	}
-
+	printf(1,"PATH IS %s\n", path);
+	resetArrays();
+	directoryWalkerSub(path); //call the sub routine
 	return 0;
+}
+
+int sys_inodeTBWalker(void){
+	for(int i=0; i<200; i++){
+		inodeTBWalkerLink[i]=0;
+	}
+	//declare structs
+	struct buf *bp;
+	struct dinode *dp;
+	readsb(1,&sb); //read the super block
+	for(int i=1; i<sb.ninodes;i++){
+		bp=bread(1, IBLOCK(i, sb));
+		dp=(struct dinode*)bp->data+i%IPB;
+		if(dp->type!=0){ //if not a free inode
+			printf(1, "INODE %d \t TYPE %d\n", i,dp->type);
+			inodeTBWalkerLink[i]++; //increment
+		}
+		brelse(bp);
+	}
+	return 0;
+}
+
+int sys_deleteIData(void){
+	int i;
+	argint(0,&i);
+	callDeleteInFS(i);
+	return 0;
+}
+
 
 }

@@ -20,4 +20,10 @@
 #define SYS_link   19
 #define SYS_mkdir  20
 #define SYS_close  21
-#define SYS_countTraps 22
+//Added
+#define SYS_myMemory 22
+#define SYS_inodeTBWalker 23
+#define SYS_deleteIData 24
+#define SYS_directoryWalker 25
+#define SYS_compareWalkers 26
+#define SYS_recoverFS 27

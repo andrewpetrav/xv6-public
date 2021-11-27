@@ -28,8 +28,9 @@ static void itrunc(struct inode*);
 struct superblock sb; 
 
 //Added
-struct inode*;
-getCaller(uint i){
+static struct inode* iget(uint d, uint inum);
+
+struct inode* igetCaller(uint i){
 	return iget(1,i);
 }
 
